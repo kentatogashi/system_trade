@@ -1,21 +1,25 @@
+import os
+import sys
 import ccxt
 from datetime import datetime, timedelta, timezone
 
 class Trade:
     def __init__(self, conf=None):
-        if conf is None:
-            self.conf = None
-            self.ticker = 'BTC/JPY'
-            self.exchange = ccxt.bitbank()
-            self.exchange.apiKey = None
-            self.exchange.secret = None
-        else:
-            self.conf = conf
+        if conf:
             self.ticker = conf.ticker
             self.exchange = eval("ccxt.%s()" % conf.exchange)
-            self.exchange.apiKey = conf.api_key
-            self.exchange.secret = conf.secret
-
+            self.exchange.apiKey = conf.API_KEY
+            self.exchange.secret = conf.SECRET
+        else:
+            if os.environ.get('API_KEY'):
+                self.exchange.apiKey = os.environ.get('API_KEY')
+            else:
+                sys.exit('not found API_KEY')
+            if os.environ.get('SECRET'):
+                self.exchange.secret = os.environ.get('SECRET')
+            else:
+                sys.exit('not found SECRET')
+                
     def get_symbols(self):
         return self.exchange.symbols
 
@@ -44,7 +48,22 @@ class Trade:
     def cancelPreviousOrder(self):
         raise NotImplementedError
 
+    def public_api_example(self):
+        result = self.exchange.fetch_markets()
+        print(json.dumps(result, indent=True))
+        print('fetch_ticker')
+        result = self.exchange.fetch_ticker('BTC/JPY')
+        print(json.dumps(result, indent=True))
+        print('fetch_order_book')
+        result = self.exchange.fetch_order_book(symbol='BTC/JPY')
+        print(result)
+        print('fetch_trades')
+        result = self.exchange.fetch_trades(symbol='BTC/JPY', limit=2)
+        print(result)
+
+    def private_api_example(self):
+        result = self.exchange.fetch_balance()
+        print(json.dumps(result, indent=True))
+
 if __name__ == '__main__':
     trade = Trade()
-    print(trade.get_symbols())
-    print(trade.get_historical_data())
