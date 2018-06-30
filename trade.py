@@ -16,7 +16,7 @@ class Trade:
         self.exchange = eval("ccxt.%s()" % conf.get('setting', 'exchange'))
         self.exchange.apiKey = conf.get('setting', 'api_key')
         self.exchange.secret = conf.get('setting', 'secret')
-        self.open_orders_limit = 1
+        self.open_orders_limit = 10
 
     def order_is_enable(self):
         open_orders = self.exchange.fetch_open_orders(symbol=self.ticker)
@@ -41,6 +41,16 @@ class Trade:
             return json.dumps(result, indent=True)
         else:
             raise LimitOrderError
+
+    def cancel_previous_order(self):
+        orders = self.exchange.fetch_open_orders(self.ticker)
+        if len(orders) == 0:
+            return False
+        else:
+            sorted_ids = sorted(orders, key=lambda x: x['id'])
+            previous_order_id = [int(x['id']) for x in sorted_ids][-1]
+            self.exchange.cancel_order(previous_order_id, self.ticker)
+            return True
 
     def get_symbols(self):
         return self.exchange.symbols
@@ -84,5 +94,7 @@ class Trade:
 if __name__ == '__main__':
     conf_file = 'trade.conf'
     trade = Trade(conf_file)
-    print(trade.buy(amount=0.0001, price=100000))
-    print(trade.sell(amount=0.0001, price=10000000))
+    trade.buy(amount=0.0001, price=100000)
+    import time
+    time.sleep(5)
+    trade.cancel_previous_order()
