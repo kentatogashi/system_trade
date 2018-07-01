@@ -58,15 +58,11 @@ class Trade:
     def get_ticker(self):
         return self.exchange.fetchTicker(self.ticker)
 
-    def get_historical_data(self, start_date=None, time_unit='1d'):
-        if start_date is None:
-            start_date = (datetime.now().replace(tzinfo=timezone.utc) - timedelta(days=14)).timestamp()
-        historical_data = self.exchange.fetch_ohlcv(
-                self.ticker, 
-                timeframe=time_unit,
-                since="20180626",
-                limit=100)
-        return historical_data
+    def get_ohlcv(self, before=10, timeframe='1h'):
+        timestamp = self.exchange.fetch_ticker(self.ticker)['timestamp']
+        timestamp_since = timestamp - before * (60 * 60 * 1000)
+        candles = self.exchange.fetch_ohlcv(self.ticker, timeframe=timeframe, since=timestamp_since)
+        return candles
 
     def checkOrder(self):
         raise NotImplementedError
@@ -94,7 +90,8 @@ class Trade:
 if __name__ == '__main__':
     conf_file = 'trade.conf'
     trade = Trade(conf_file)
-    trade.buy(amount=0.0001, price=100000)
-    import time
-    time.sleep(5)
-    trade.cancel_previous_order()
+    #trade.buy(amount=0.0001, price=100000)
+    #import time
+    #time.sleep(5)
+    #trade.cancel_previous_order()
+    print(trade.get_ohlcv())
