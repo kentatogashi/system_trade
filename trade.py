@@ -4,6 +4,7 @@ import sys
 import ccxt
 import json
 from datetime import datetime, timedelta, timezone
+import requests
 
 class LimitOrderError(Exception):
     pass
@@ -58,11 +59,17 @@ class Trade:
     def get_ticker(self):
         return self.exchange.fetchTicker(self.ticker)
 
-    def get_ohlcv(self, before=10, timeframe='1h'):
+    def get_ohlcv(self, before=500, timeframe='5m'):
         timestamp = self.exchange.fetch_ticker(self.ticker)['timestamp']
         timestamp_since = timestamp - before * (60 * 60 * 1000)
         candles = self.exchange.fetch_ohlcv(self.ticker, timeframe=timeframe, since=timestamp_since)
         return candles
+
+    def get_ohlcv_by_cryptwatch(self, period=3600):
+        url = 'https://api.cryptowat.ch/markets/bitflyer/btcjpy/ohlc?periods=%s' % (period)
+        res = requests.get(url)
+        data = res.json()['result'][str(period)]
+        return data
 
     def checkOrder(self):
         raise NotImplementedError
@@ -94,4 +101,7 @@ if __name__ == '__main__':
     #import time
     #time.sleep(5)
     #trade.cancel_previous_order()
-    print(trade.get_ohlcv())
+    #res = trade.get_ohlcv()
+    res = trade.get_ohlcv_by_cryptwatch()
+    print(res)
+    print(len(res))
