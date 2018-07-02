@@ -5,6 +5,14 @@ import ccxt
 import json
 from datetime import datetime, timedelta, timezone
 import requests
+import numpy as np
+import pandas as pd
+# LSTM prediction modules
+from keras.models import Sequential
+from keras.layers.core import Dense, Activation
+from keras.layers.recurrent import LSTM
+from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping
 
 class LimitOrderError(Exception):
     pass
@@ -71,10 +79,15 @@ class Trade:
         data = res.json()['result'][str(period)]
         return data
 
-    def checkOrder(self):
-        raise NotImplementedError
+    def predict_price(self, n=10):
+        data = self.get_ohlcv_by_cryptwatch()
+        #df = pd.DataFrame(data)
 
-    def cancelPreviousOrder(self):
+        def make_datasets(data, prev=50):
+            # todo
+            pass
+
+    def checkOrder(self):
         raise NotImplementedError
 
     def public_api_example(self):
