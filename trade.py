@@ -7,12 +7,14 @@ from datetime import datetime, timedelta, timezone
 import requests
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import train_test_split
 # LSTM prediction modules
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 from keras.layers.recurrent import LSTM
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
+from keras import backend
 
 class LimitOrderError(Exception):
     pass
@@ -80,41 +82,53 @@ class Trade:
         return data
 
     def predict_price(self, n=10):
-        data = self.get_ohlcv_by_cryptwatch()
-        #df = pd.DataFrame(data)
 
-        def make_datasets(data, prev=50):
-            # todo
-            pass
+        def make_datasets(df, maxlen=25):
+            length_of_sequences = len(df)
+            data = []
+            target = []
+            for i in range(0, length_of_sequences - maxlen):
+                data.append(df.iloc[i:i+maxlen, 1])
+                target.append(df.iloc[i+maxlen, 1])
+            X = np.array(data).reshape(len(data), maxlen, 1)
+            Y = np.array(target).reshape(len(data), 1)
+            return (X, Y)
+
+        def weight_variable(shape):
+            return backend.truncated_normal(shape, stddev=0.1)
+
+        data = self.get_ohlcv_by_cryptwatch()
+        # Use only closing data
+        df = pd.DataFrame(data, columns=['unixtime', 'o', 'h', 'l', 'c', 'v', 'other'])
+        maxlen = 25
+        X, Y = make_datasets(df, maxlen)
+        train_rate = 0.9
+        N_train = int(len(df) * train_rate)
+        N_validation = len(df) - N_train
+        X_train, X_validation, Y_train, Y_validation = \
+                train_test_split(X, Y, test_size=N_validation)
+
+        n_hidden = 4
+        n_out = 1
+
+        model = Sequential()
+        model.add(LSTM(n_hidden, init=weight_variable, input_shape=(maxlen, n_out)))
+        model.add(Dense(n_out, init=weight_variable))
+        model.add(Activation(('linear')))
+        optimizer = Adam(lr=0.0001, beta_1=0.9, beta_2=0.999)
+        model.compile(loss='mean_squared_error', optimizer=optimizer)
+
+        epochs = 100 
+        batch_size = 10
+        patience = 10
+
+        early_stopping = EarlyStopping(patience=patience, verbose=1)
+        model.fit(X_train, Y_train, batch_size=batch_size, epochs=epochs, validation_data=(X_validation, Y_validation), callbacks=[early_stopping])
+        print(model.predict(X_validation))
 
     def checkOrder(self):
         raise NotImplementedError
 
-    def public_api_example(self):
-        result = self.exchange.fetch_markets()
-        print(json.dumps(result, indent=True))
-        print('fetch_ticker')
-        result = self.exchange.fetch_ticker(self.ticker)
-        print(json.dumps(result, indent=True))
-        print('fetch_order_book')
-        result = self.exchange.fetch_order_book(symbol=self.ticker)
-        print(result)
-        print('fetch_trades')
-        result = self.exchange.fetch_trades(symbol=self.ticker, limit=2)
-        print(result)
-
-    def private_api_example(self):
-        result = self.exchange.fetch_balance()
-        print(json.dumps(result, indent=True))
-
 if __name__ == '__main__':
     conf_file = 'trade.conf'
     trade = Trade(conf_file)
-    #trade.buy(amount=0.0001, price=100000)
-    #import time
-    #time.sleep(5)
-    #trade.cancel_previous_order()
-    #res = trade.get_ohlcv()
-    res = trade.get_ohlcv_by_cryptwatch()
-    print(res)
-    print(len(res))
